@@ -1,0 +1,22 @@
+---
+count: 4
+default:
+  restart: 0
+  wait: 0
+editor:
+  files:
+    tests:
+      - test/*.js
+name: gulp-indent-checker
+terminals:
+  1a:
+    restart: 1
+    command: npm test
+    watch:
+      - tests
+      - index.js
+      - package.json
+  2:
+    edit:
+      - index.js
+      - gulpfile.js
