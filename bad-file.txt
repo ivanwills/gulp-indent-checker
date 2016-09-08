@@ -1,0 +1,4 @@
+This is an example bad file
+    Initially lines are indented with
+    spaces, but eventually the lines
+	change to tabs.
