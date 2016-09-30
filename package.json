@@ -1,6 +1,6 @@
 {
   "name": "gulp-indent-checker",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Check indentation matches specified rules in gulp streams",
   "main": "index.js",
   "scripts": {
