@@ -1,58 +1,105 @@
-/* global require, module, Buffer */
+'use strict';
 
-var through     = require('through2'),
-	gulputil    = require('gulp-util'),
-	indent      = require('indent-checker'),
-	PluginError = gulputil.PluginError;
+var mapStream   = require('map-stream');
+var gutil       = require('gulp-util');
+var c           = gutil.colors;
+var indent      = require('indent-checker');
+var through     = require('through2');
+var PluginError = require('gulp-util').PluginError;
 
 const PLUGIN_NAME = 'gulp-indent-checker';
 
-module.exports = function (options) {
-	var stream = through.obj(function (file, enc, callback) {
+var formatOutput = function (msg) {
+	var output = {};
+
+	if (msg) {
+		output.message = msg;
+	}
+
+	output.success = !!msg;
+
+	return output;
+};
+
+var indentCheckerPlugin = function (options) {
+	options = options || {};
+
+	return mapStream(function (file, cb) {
+		var errorMessage = '';
 		console.log(file.path);
+
 		try {
 			indent.assertIndent(file.contents + '', options);
-		} catch (e) {
-			console.log('here');
-			file.frror = e;
-			console.log(file.path, e);
+		} catch (err) {
+			errorMessage = JSON.stringify(err);
 		}
-		try {
-			console.log(enc);
-			console.log(' ');
-		callback(file);
-		} catch (e) { console.error(e); }
-		console.info('???');
-	});
+		file.indent = formatOutput(errorMessage);
 
-	return stream;
+		cb(null, file);
+	});
 };
 
-module.exports.simpleReporter = function (options) {
-	var stream = through.obj(function (file, enc, callback) {
-		console.log('simple');
-		if (file.frror) {
-			console.warn(file.path + ': ' + file.frror);
-		}
-		callback(file);
-	});
-	return stream;
+var defaultReporter = function (file) {
+	gutil.log(c.yellow('Error on file ') + c.magenta(file.path));
+	gutil.log(c.red(file.indent.message));
 };
 
-module.exports.errorReporter = function (options) {
-	var errors = 0;
-	var stream = through.obj(function (file, enc, callback) {
-		if (file.frror) {
-			errors++;
+indentCheckerPlugin.reporter = function (customReporter) {
+	var reporter = defaultReporter;
+
+	if (typeof customReporter === 'function') {
+		reporter = customReporter;
+	}
+
+	return mapStream(function (file, cb) {
+		if (file.indent && !file.indent.success) {
+			reporter(file);
 		}
-		callback(file);
-	})
-	.on('end', function () {
-		if (errors) {
-			var msg = errors > 1 ? 'There were ' + errors + ' files with errors!' :
-				'There was one file with an error!';
-			throw new PluginError(PLUGIN_NAME, msg);
-		}
+		return cb(null, file);
 	});
-	return stream;
 };
+
+/**
+ * Fail when an indent error is found in indent results.
+ */
+indentCheckerPlugin.failOnError = function () {
+
+	return through.obj(function (file, enc, cb) {
+		if (file.indent.success === false) {
+			var error = new PluginError(
+				'gulp-indent', {
+				name: 'IndentChecError',
+				filename: file.path,
+				message: file.indent.message,
+			});
+		}
+
+		return cb(error, file);
+	});
+};
+
+/**
+ * Fail when the stream ends if any indentChecker error(s) occurred
+ */
+indentCheckerPlugin.failAfterError = function () {
+	var errorCount = 0;
+
+	return through.obj(function (file, enc, cb) {
+		errorCount += file.indent.success === false
+
+		cb(null, file);
+
+	}, function (cb) {
+		if (errorCount > 0) {
+			this.emit('error', new PluginError(
+				PLUGIN_NAME, {
+				name: 'IndentChecError',
+				message: 'Failed with ' + errorCount + (errorCount === 1 ? ' error' : ' errors')
+			}));
+		}
+
+		cb();
+	});
+};
+
+module.exports = indentCheckerPlugin;
