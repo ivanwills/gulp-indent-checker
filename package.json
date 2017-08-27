@@ -4,7 +4,8 @@
   "description": "Check indentation matches specified rules in gulp streams",
   "main": "index.js",
   "scripts": {
-    "test": "node_modules/.bin/istanbul cover ./node_modules/.bin/_mocha -- test/"
+    "test": "node_modules/.bin/istanbul cover ./node_modules/.bin/_mocha -- test/",
+    "postversion": "git push && git push --tags"
   },
   "keywords": [
     "gulp",
